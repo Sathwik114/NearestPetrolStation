@@ -70,6 +70,8 @@ export default function App() {
   const [routeCoords, setRouteCoords] = useState(null);
   const [geoError, setGeoError] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [showManualLocation, setShowManualLocation] = useState(false);
+  const [manualLocation, setManualLocation] = useState({ lat: '', lon: '' });
 
   const mapRef = useRef(null);
   const { isDark, setIsDark } = useDarkMode();
@@ -113,6 +115,21 @@ export default function App() {
     setLoading(true);
     getCurrentLocation();
   }, [getCurrentLocation]);
+
+  const setManualLocationAndFetch = useCallback(() => {
+    const lat = parseFloat(manualLocation.lat);
+    const lon = parseFloat(manualLocation.lon);
+    
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      alert('Please enter valid coordinates (Lat: -90 to 90, Lon: -180 to 180)');
+      return;
+    }
+    
+    const current = { lat, lon };
+    setUserLocation(current);
+    setShowManualLocation(false);
+    setGeoError(null);
+  }, [manualLocation]);
 
   useEffect(() => {
     async function load() {
@@ -256,13 +273,74 @@ export default function App() {
               <div className="h-full w-full flex items-center justify-center p-6">
                 <div className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 p-4 rounded-md shadow-sm max-w-sm text-center">
                   <div className="mb-3">{geoError}</div>
-                  <button
-                    onClick={getCurrentLocation}
-                    disabled={isLocating}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLocating ? 'Locating...' : 'Try Again'}
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      onClick={getCurrentLocation}
+                      disabled={isLocating}
+                      className="w-full px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLocating ? 'Locating...' : 'Try Again'}
+                    </button>
+                    <button
+                      onClick={() => setShowManualLocation(true)}
+                      className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                      Enter Location Manually
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showManualLocation && (
+              <div className="h-full w-full flex items-center justify-center p-6">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Enter Your Location</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Latitude
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="e.g., 12.9716"
+                        value={manualLocation.lat}
+                        onChange={(e) => setManualLocation(prev => ({ ...prev, lat: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Longitude
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="e.g., 77.5946"
+                        value={manualLocation.lon}
+                        onChange={(e) => setManualLocation(prev => ({ ...prev, lon: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                      />
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Find coordinates at: maps.google.com
+                    </div>
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        onClick={setManualLocationAndFetch}
+                        className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                      >
+                        Find Stations
+                      </button>
+                      <button
+                        onClick={() => setShowManualLocation(false)}
+                        className="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
