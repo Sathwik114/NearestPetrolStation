@@ -68,33 +68,51 @@ export default function App() {
   const [error, setError] = useState(null);
   const [selectedStationId, setSelectedStationId] = useState(null);
   const [routeCoords, setRouteCoords] = useState(null);
+  const [geoError, setGeoError] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   const mapRef = useRef(null);
   const { isDark, setIsDark } = useDarkMode();
   const userMarkerRef = useRef(null);
   const hasCenteredRef = useRef(false);
 
-  useEffect(() => {
-    setLoading(true);
+  const getCurrentLocation = useCallback(() => {
     if (!('geolocation' in navigator)) {
-      setError('Geolocation is not supported by your browser.');
+      setGeoError('Geolocation is not supported by your browser.');
       setLoading(false);
       return;
     }
+    
+    setIsLocating(true);
+    setGeoError(null);
+    
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         const current = { lat: latitude, lon: longitude };
         setUserLocation(current);
+        setGeoError(null);
+        setIsLocating(false);
       },
       (err) => {
         console.error(err);
-        setError('Unable to retrieve your location.');
+        let errorMsg = 'Unable to retrieve your location.';
+        if (err.code === 1) errorMsg = 'Location access denied. Please allow location permission and try again.';
+        else if (err.code === 2) errorMsg = 'Location unavailable. Please check your GPS/network connection.';
+        else if (err.code === 3) errorMsg = 'Location request timed out. Please try again.';
+        
+        setGeoError(errorMsg);
         setLoading(false);
+        setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 15000 }
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 }
     );
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    getCurrentLocation();
+  }, [getCurrentLocation]);
 
   useEffect(() => {
     async function load() {
@@ -176,7 +194,7 @@ export default function App() {
 
       <main className="flex-1 grid grid-rows-[1fr_auto] md:grid-rows-1 md:grid-cols-3 gap-0 md:gap-4 max-w-7xl mx-auto w-full p-0 md:p-4">
         <section className="md:col-span-2 bg-white dark:bg-gray-800 md:rounded-xl md:shadow-card overflow-hidden">
-          <div className="h-[60vh] md:h-[calc(100vh-8rem)]">
+          <div className="h-[60vh] md:h-[calc(100vh-8rem)] sm:h-[50vh]">
             {center && !loading && (
               <MapContainer
                 center={center}
@@ -222,13 +240,30 @@ export default function App() {
 
             {loading && (
               <div className="h-full w-full flex items-center justify-center">
-                <div className="animate-pulse text-primary-700 dark:text-primary-300">Loading map and nearby stations…</div>
+                <div className="animate-pulse text-primary-700 dark:text-primary-300">
+                  {isLocating ? 'Getting your location…' : 'Loading map and nearby stations…'}
+                </div>
               </div>
             )}
 
             {error && !loading && (
               <div className="h-full w-full flex items-center justify-center p-6">
                 <div className="bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 p-4 rounded-md shadow-sm">{error}</div>
+              </div>
+            )}
+
+            {geoError && !loading && (
+              <div className="h-full w-full flex items-center justify-center p-6">
+                <div className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 p-4 rounded-md shadow-sm max-w-sm text-center">
+                  <div className="mb-3">{geoError}</div>
+                  <button
+                    onClick={getCurrentLocation}
+                    disabled={isLocating}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLocating ? 'Locating...' : 'Try Again'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -267,6 +302,18 @@ export default function App() {
         </aside>
       </main>
 
+      {/* Floating Locate Me button for mobile */}
+      <button
+        onClick={getCurrentLocation}
+        disabled={isLocating}
+        className="fixed bottom-20 right-4 md:hidden z-20 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Locate me"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
       
     </div>
   );
